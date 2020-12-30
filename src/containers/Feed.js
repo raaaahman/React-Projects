@@ -45,6 +45,7 @@ class Feed extends Component {
       page: (query.page) ? parseInt(query.page) : 1,
       loading: true,
       error: '',
+      preload: [],
     };
   }
 
@@ -65,9 +66,10 @@ class Feed extends Component {
   async fetchAPI(page) {
     try {
       const data = await fetch(
-        `${ROOT_API}questions?order=desc&sort=activity&tagged=reactjs&site=stackoverflow${(page) ? `&page=${page}` : ''}`
+        this.fetchURL(page)
       );
       const dataJSON = await data.json();
+     
 
       if (dataJSON) {
         this.setState({
@@ -81,6 +83,22 @@ class Feed extends Component {
         error: error.message,
       });
     }
+
+    for (let i = page + 1; i <= page + 3; i++) {
+      if ((this.state.preload.length === 0 && this.state.data.has_more == false) || 
+        this.state.preload[this.state.preload.length - 1].has_more == false) {
+        break;
+      }
+      const preloadData = await fetch(this.fetchURL(i));
+      const preloadDataJSON = await preloadData.json();
+      this.setState({
+        preload: this.state.preload.concat(preloadDataJSON)
+      })
+    }
+  }
+
+  fetchURL(page) {
+    return `${ROOT_API}questions?order=desc&sort=activity&tagged=reactjs&site=stackoverflow${(page) ? `&page=${page}` : ''}`;
   }
 
   render() {
@@ -89,6 +107,11 @@ class Feed extends Component {
 
     if (loading || error) {
       return <Alert>{loading ? 'Loading...' : error}</Alert>;
+    }
+
+    const previousPages = [];
+    for (let i = page; i > 0 && i > page - 3; i--) {
+      previousPages.push(i)
     }
 
     return (
@@ -100,6 +123,7 @@ class Feed extends Component {
         ))}
         <PaginationBar>
           {page > 1 && <PaginationLink to={`${match.url}?page=${page - 1}`}>Previous</PaginationLink>}
+          <strong>{page}</strong>
           {data.has_more && <PaginationLink to={`${match.url}?page=${page + 1}`}>Next</PaginationLink>}
         </PaginationBar>
       </FeedWrapper>
